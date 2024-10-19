@@ -1,16 +1,6 @@
 #include <iostream>
 #include <cmath>
 
-// double* NNforward(size_t N_size){
-//     double* result;
-//     result  = new double[N_size];
-//     for (int i = 0; i < N_size; i++){
-//         result[i] = 10;
-//     }
-//     return result;
-// }
-
-
 void print_vector(double* vector, size_t sample_size){
     for (size_t i = 0; i < sample_size ; i++){
         printf("%f ",vector[i]);
@@ -28,148 +18,112 @@ double random_number(double r_down,double r_up){
     return r;
 }
 
-class Edge{
-public:
-    Edge();
-    double w;
-};
-
-class Neuron{
-public:
-    // Neuron(size_t N_neurons);
-    Neuron();
-    ~Neuron();
-    size_t N_next_neurons;
-    Neuron** next_layer;
-    Edge** next_edges;
-    double b;
-    double z; 
-    void forward_propagation();
-};
-
-// Neuron::Neuron(size_t N_neurons){
-Neuron::Neuron(){
-    z = 0;
-    b = random_number(-2,2);
-    // N_next_neurons = N_neurons;
-    N_next_neurons = 0;
-    next_layer = nullptr;//new Neuron*[N_next_neurons];
-    next_edges = nullptr;//new Edge*[N_next_neurons];
-}
-
-Neuron::~Neuron() {
-    if (next_layer) {
-        delete[] next_layer; 
-    }
-    if (next_edges) {
-        delete[] next_edges; 
-    }
-}
-
-
-// Neuron::~Neuron(){
-    // std::cout << "Seaman is alive\n";
-    // delete[] next_layer;
-    // delete[] next_edges;
-// }
-
-Edge::Edge(){
-    w = random_number(-2,2);
-}
-
 class Layer{
  public:
     Layer(size_t N_size);
-    ~Layer();
-    size_t N_neurons;
-    Neuron** neurons;
+    // ~Layer();
+    void print_layer();
+    size_t N_size;
+    double* z; 
+    double* b;
+    double** w;
 };
+
+Layer::Layer(size_t n_size){
+    N_size = n_size;
+    z = new double[N_size];
+    b = new double[N_size];
+    w = new double*[N_size];
+    for (size_t n = 0; n < N_size; n++){
+        // z[n] = random_number(-2,2);
+        z[n] = 0;// random_number(-2,2);
+        b[n] = random_number(-2,2);
+        w[n] = nullptr;
+    }
+}
+
+void Layer::print_layer(){
+    for (size_t l = 0; l < N_size; l++){
+        std::cout << "b=" << b[l] << ", z=" << z[l] << std::endl;
+    }
+}
+
+
+
+// NN::~NN() {
+//     for (size_t i = 0; i < N_layers; i++) {
+//         delete layers[i]; 
+//     }
+//     delete[] layers;
+// }
+
 
 class NN{
 public:
-    NN(size_t input_size, size_t output_size);
-    ~NN();
-    void add_layer(Layer* added_layer);
+    NN(size_t N_layers, size_t* layer_sizes);
+    // ~NN();
+    void print_NN();
+    void forward(double* input);
     size_t N_layers;
     Layer** layers;
 };
 
-NN::NN(size_t input_size, size_t output_size){
-    N_layers = 2;
+NN::NN(size_t n_layers, size_t* layer_sizes){
+    N_layers = n_layers;
     layers = new Layer*[N_layers];
-    layers[0] = new Layer(input_size);
-    layers[1] = new Layer(output_size);
-}
-
-NN::~NN() {
-    for (size_t i = 0; i < N_layers; i++) {
-        delete layers[i]; 
+    for (size_t l = 0 ; l < N_layers-1; l++){
+        layers[l] = new Layer(layer_sizes[l]);
+        size_t current_layer_size = layers[l]->N_size;
+        for (size_t n = 0; n < current_layer_size ; n++){
+            layers[l]->w[n] = new double[layer_sizes[l+1]];
+            for (size_t n2 = 0; n2 < layer_sizes[l+1] ; n2++){
+                layers[l]->w[n][n2] = random_number(-2,2);
+            }
+        }
     }
-    delete[] layers;
+    layers[N_layers-1] = new Layer(layer_sizes[N_layers-1]);
 }
 
-void NN::add_layer(Layer* added_layer){
-    // this function add a layer, but will keep input and output layers unchange.
-    this->N_layers += 1;
-    Layer** new_layers = new Layer*[this->N_layers];
-    // new_layers[0] =
-    for (size_t layer = 0 ; layer < N_layers - 2 ; layer++){
-        new_layers[layer] = this->layers[layer]; 
-    }
-    new_layers[this->N_layers-2] = added_layer;
-    new_layers[this->N_layers-1] = this->layers[this->N_layers-2];
-    delete[] this->layers; // This is not freeing pointers 1 level below, which is bad
-    this->layers = new_layers;
-}
-
-Layer::Layer(size_t N_size){
-    N_neurons = N_size;
-    neurons = new Neuron*[N_size];
-    for (size_t neuron = 0; neuron < N_neurons; neuron++){
-        neurons[neuron] = new Neuron();
+void NN::print_NN(){
+    std::cout << "Printing NN with " << this->N_layers << " layers\n";
+    for (size_t l = 0; l < this->N_layers-1; l++){
+        std::cout << "###################Layer " << l << " ############\n";
+        for (size_t n = 0; n < this->layers[l]->N_size ; n++){
+            std::cout << "b=" << this->layers[l]->b[n] << ", z=" << this->layers[l]->z[n] << std::endl;
+            // std::cout << "this->layers[l+1]->N_size" << this->layers[l+1]->N_size << std::endl;
+            for (size_t n2 = 0; n2 < this->layers[l+1]->N_size ; n2++){
+                std::cout << this->layers[l]->w[n][n2] << " ";
+            }
+            std::cout << std::endl;
+        }
     }
 }
 
-Layer::~Layer() {
-    for (size_t i = 0; i < N_neurons; i++) {
-        delete neurons[i]; 
+void NN::forward(double* input){
+    // this assumes that input is a correct size
+    // TODO: check correct size
+    for (size_t n = 0 ; n < this->layers[0]->N_size ; n++){
+        this->layers[0]->z[n] = input[n];
     }
-    delete[] neurons; 
+    for (size_t l = 1 ; l < this->N_layers ; l++){
+        auto cur_layer = this->layers[l];
+        auto prev_layer = this->layers[l-1];
+        for (size_t current_n = 0 ; current_n < cur_layer->N_size ; current_n++){
+            for (size_t prev_n = 0 ; prev_n < prev_layer->N_size ; prev_n++){
+                cur_layer->z[current_n] += prev_layer->z[prev_n]*prev_layer->w[prev_n][current_n]+ cur_layer->b[current_n];;
+                // cur_layer->z[current_n] += prev_layer->z[prev_n]*prev_layer->w[current_n][prev_n] + cur_layer->b[current_n];
+            }
+        }
+    }
 }
-
-// void connect_layers(Layer layer1, Layer layer2){
-    
-// }
 
 int main(){
-    std::cout << "Hello world\n";
-    NN tempNN = NN(10,4);
-    std::cout << "###########0 layer######################\n";
-    for (int i = 0; i < 10 ; i++){
-        std::cout << tempNN.layers[0]->neurons[i]->b << std::endl;
-    }
-    std::cout << "###########1 layer######################\n";
-    for (int i = 0; i < 4 ; i++){
-        std::cout << tempNN.layers[1]->neurons[i]->b << std::endl;
-    }
-    Layer* temp_layer = new Layer(7);
-    tempNN.add_layer(temp_layer);
-    std::cout << "###########new 1 layer######################\n";
-    for (int i = 0; i < 7 ; i++){
-        std::cout << tempNN.layers[1]->neurons[i]->b << std::endl;
-    }
-    std::cout << "###########moved output layer######################\n";
-    for (int i = 0; i < 4 ; i++){
-        std::cout << tempNN.layers[2]->neurons[i]->b << std::endl;
-    }
-    
-    // Neuron n1 = Neuron(3); // this is 1 neuron to 3
-    // Neuron n2 = Neuron(1);
-    // Edge e1 = Edge();
-    // n1.next_layer[0] = &n2;
-    // std::cout << n1.next_layer[0]->b << std::endl;
-    // std::cout << n2.b << std::endl;
-    // n1.next_edges[0] = &e1; 
-    // n1.next_layer[0]->z = n1.z*n1.next_edges[0]->w + n1.next_layer[0]->b;
+    size_t NN_layer[5] = {2, 3, 1, 3, 1};
+    auto my_NN = NN(5,NN_layer);
+    double inputs[3] = {2.3,5.1};
+    my_NN.forward(inputs);
+    my_NN.print_NN();
+    // auto temp = Layer(10);
+    // temp.print_layer();
     return 0;
 }
