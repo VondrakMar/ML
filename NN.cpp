@@ -1,6 +1,6 @@
 #include <cmath>
 
-#include "NN.hpp"
+#include "NNtest.hpp"
 void print_vector(double* vector, size_t sample_size){
     for (size_t i = 0; i < sample_size ; i++){
         printf("%f ",vector[i]);
@@ -25,212 +25,151 @@ double random_number(double r_down,double r_up){
     return r;
 }
 
-
-Layer::Layer(size_t n_size){
-    N_size = n_size;
-    a = new double[N_size];
-    b = new double[N_size];
-    delta = new double[N_size];
-    w = new double*[N_size];
-    dw = new double*[N_size];
-    for (size_t n = 0; n < N_size; n++){
-        // z[n] = random_number(-2,2);
-        a[n] = 0;// random_number(-2,2);
-        b[n] = random_number(-2,2);
-        delta[n] = 0;
-        w[n] = nullptr;
-        dw[n] = nullptr;
+NN::NN(size_t n_layers, size_t* sizes) : num_of_layers(n_layers), layers_sizes(new size_t[n_layers]) {
+    for (size_t layer = 0; layer < num_of_layers ; layer++){
+        layers_sizes[layer] = sizes[layer]; 
+    }
+    weights = new double**[num_of_layers-1];
+    for (size_t layer = 0; layer < num_of_layers -1 ; layer++){
+        weights[layer] = weights_init(layers_sizes[layer],layers_sizes[layer+1]);
     }
 }
 
-void Layer::print_layer(){
-    for (size_t l = 0; l < N_size; l++){
-        std::cout << "b=" << b[l] << ", z=" << a[l] << std::endl;
+double* NN::forward(double* input){
+    size_t size_input_layer = this->layers_sizes[0];
+    size_t size_output_layer = this->layers_sizes[this->num_of_layers-1];
+    double** nodes_outputs = new double*[num_of_layers];
+    double* output = new double[size_output_layer];
+    for (size_t layer = 0; layer < this->num_of_layers ; layer++){
+        nodes_outputs[layer] = new double[this->layers_sizes[layer]];
     }
-}
-
-
-
-NN::NN(size_t n_layers, size_t* layer_sizes){
-    // n_layers is a number of how many layers therre will be
-    // layer_sizes is number of nodes in each layer. This also includes input and output layer, where you can set up input size and output size
-    // layer sizes {1,1} is just 1 input layer and 1 output layer with 1 weight
-    N_layers = n_layers; // number of layers
-    layers = new Layer*[N_layers]; // allocating memory for pointers to layers objects
-    
-    for (size_t l = 0 ; l < N_layers-1; l++){
-        layers[l] = new Layer(layer_sizes[l]);
-        size_t current_layer_size = layers[l]->N_size;
-        for (size_t n = 0; n < current_layer_size ; n++){
-            layers[l]->w[n] = new double[layer_sizes[l+1]];
-            layers[l]->dw[n] = new double[layer_sizes[l+1]];
-            for (size_t n2 = 0; n2 < layer_sizes[l+1] ; n2++){
-                layers[l]->w[n][n2] = random_number(-2,2);
-                layers[l]->dw[n][n2] = 0;
+    for (size_t node = 0; node < size_input_layer ; node++){
+        nodes_outputs[0][node] = input[node];
+    }
+    for (size_t layer = 1; layer < this->num_of_layers ; layer++){
+        size_t size_layer_from = this->layers_sizes[layer-1];
+        size_t size_layer_to = this->layers_sizes[layer];
+        for (size_t node1 = 0; node1 < size_layer_to ; node1++){
+            nodes_outputs[layer][node1] = 0;
+            for (size_t node0 = 0; node0 < size_layer_from ; node0++){
+                nodes_outputs[layer][node1] += sigmoid(nodes_outputs[layer-1][node0])*this->weights[layer-1][node0][node1];
             }
         }
     }
-    layers[N_layers-1] = new Layer(layer_sizes[N_layers-1]);
-}
-
-NN::NN(){
-   
-}
-
-void NN::print_NN(){
-    std::cout << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n" << "Printing NN with " << this->N_layers << " layers\n" << "$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$\n" ;
-    for (size_t l = 0; l < this->N_layers-1; l++){
-        std::cout << "###################Layer " << l << " ############\n";
-        for (size_t n = 0; n < this->layers[l]->N_size ; n++){
-            std::cout << "for forward: b=" << this->layers[l]->b[n] << ", a=" << this->layers[l]->a[n] << std::endl;
-            std::cout << "for backward: delta=" << this->layers[l]->delta[n] << std::endl;
-            // std::cout << "this->layers[l+1]->N_size" << this->layers[l+1]->N_size << std::endl;
-            for (size_t n2 = 0; n2 < this->layers[l+1]->N_size ; n2++){
-                std::cout << this->layers[l]->w[n][n2] << " ";
-            }
-            std::cout << std::endl << "dws: ";
-            for (size_t n2 = 0; n2 < this->layers[l+1]->N_size ; n2++){
-                std::cout << this->layers[l]->dw[n][n2] << " ";
-            }
-            std::cout << std::endl;
-
-        }
+    for (size_t output_node = 0; output_node < size_output_layer ; output_node++){
+        output[output_node] = sigmoid(nodes_outputs[this->num_of_layers-1][output_node]);
     }
-    std::cout << "###################Output layer " << N_layers-1 << " ############\n";
-    size_t l = N_layers - 1;
-    for (size_t n = 0; n < this->layers[l]->N_size ; n++){
-        std::cout << "b=" << this->layers[l]->b[n] << ", a=" << this->layers[l]->a[n] << std::endl;
-        std::cout << "for backward: delta=" << this->layers[l]->delta[n] << std::endl;
-        // std::cout << "this->layers[l+1]->N_size" << this->layers[l+1]->N_size << std::endl;
+    for (size_t layer = 0; layer < num_of_layers ; layer++){
+        delete[] nodes_outputs[layer];
     }
+    delete[] nodes_outputs;
+    return output;
 }
 
-double* NN::forward(size_t N_input,double** input){
-    // this assumes that input is a correct size
-    // TODO: check correct size
-    // TODO: at this moment without biases
-    // cur_layer->b[current_n];
-    // N_input is number of input entries, each input has to have a lenght of layers[0]->N_size 
-    double* results = new double[N_input]; // for now output layer is 1
-    size_t id_last_layer = this->N_layers-1;
-
-    for (size_t input_entry = 0; input_entry < N_input ; input_entry++){
-        this->zero_grads(); // for now, this function also restart all parameters
-        for (size_t n = 0 ; n < this->layers[0]->N_size ; n++){
-            // std::cout <<input[input_entry][n] << " ";
-            this->layers[0]->a[n] = input[input_entry][n];
-        }
-        // std::cout << std::endl;
-        for (size_t l = 1 ; l < this->N_layers ; l++){
-            auto cur_layer = this->layers[l];
-            auto prev_layer = this->layers[l-1];
-            for (size_t current_n = 0 ; current_n < cur_layer->N_size ; current_n++){
-                cur_layer->a[current_n] = 0;
-                for (size_t prev_n = 0 ; prev_n < prev_layer->N_size ; prev_n++){
-                    cur_layer->a[current_n] += (sigmoid(prev_layer->a[prev_n]))*prev_layer->w[prev_n][current_n];
-                }
+void NN::train(double* input, double* output,double lr,size_t epochs){
+    double** nodes_outputs = new double*[num_of_layers];
+    double** errors = new double*[num_of_layers];
+    /*
+      copy from forward for now, here are changes that nodes_outputs are sigmoid, this has to be changed also in forward
+    */
+    size_t size_input_layer = this->layers_sizes[0];
+    size_t size_output_layer = this->layers_sizes[this->num_of_layers-1];
+    double* pred_output = new double[size_output_layer];
+    for (size_t layer = 0; layer < this->num_of_layers ; layer++){
+        nodes_outputs[layer] = new double[this->layers_sizes[layer]];
+        errors[layer] = new double[this->layers_sizes[layer]];
+    }
+    for (size_t node = 0; node < size_input_layer ; node++){
+        nodes_outputs[0][node] = input[node];
+    }
+    for (size_t layer = 1; layer < this->num_of_layers ; layer++){
+        size_t size_layer_from = this->layers_sizes[layer-1];
+        size_t size_layer_to = this->layers_sizes[layer];
+        for (size_t node1 = 0; node1 < size_layer_to ; node1++){
+            nodes_outputs[layer][node1] = 0;
+            for (size_t node0 = 0; node0 < size_layer_from ; node0++){
+                nodes_outputs[layer][node1] += sigmoid(nodes_outputs[layer-1][node0])*this->weights[layer-1][node0][node1];
             }
         }
-        auto cur_layer = this->layers[id_last_layer];
-        results[input_entry] = sigmoid(cur_layer->a[0]); // TODO: This has to change if the last layer is not of size 1;
     }
-    return results;
-}
-
-void NN::forward_single(double* input_single){
-    // this assumes that input is a correct size
-    // TODO: check correct size
-    // TODO: at this moment without biases
-    // cur_layer->b[current_n];
-    // N_input is number of input entries, each input has to have a lenght of layers[0]->N_size 
-    for (size_t n = 0 ; n < this->layers[0]->N_size ; n++){
-        this->layers[0]->a[n] = input_single[n];
+    // double diff = 0;
+    for (size_t output_node = 0; output_node < size_output_layer ; output_node++){
+        pred_output[output_node] = sigmoid(nodes_outputs[this->num_of_layers-1][output_node]);
+        double diff =  pred_output[output_node]-output[output_node];
+        std::cout << "diff " << diff << std::endl;
+        errors[this->num_of_layers-1][output_node] = diff*dsigmoid(nodes_outputs[this->num_of_layers-1][output_node]);
     }
-    for (size_t l = 1 ; l < this->N_layers ; l++){
-        auto cur_layer = this->layers[l];
-        auto prev_layer = this->layers[l-1];
-        for (size_t current_n = 0 ; current_n < cur_layer->N_size ; current_n++){
-            cur_layer->a[current_n] = 0;
-            for (size_t prev_n = 0 ; prev_n < prev_layer->N_size ; prev_n++){
-                cur_layer->a[current_n] += (sigmoid(prev_layer->a[prev_n]))*prev_layer->w[prev_n][current_n];
+    /*
+     ######################################################################
+    */
+    for (size_t layer = this->num_of_layers-1; layer >= 1 ; layer--){
+        // here from and to is exchange wrt to forward
+        size_t size_layer_from = this->layers_sizes[layer];
+        size_t size_layer_to = this->layers_sizes[layer-1];
+        for (size_t node_to = 0; node_to < size_layer_to ; node_to++){
+            errors[layer-1][node_to] = 0;
+            for (size_t node_from = 0; node_from < size_layer_from ; node_from++){
+                errors[layer-1][node_to] += dsigmoid(nodes_outputs[layer-1][node_to])*weights[layer-1][node_to][node_from]*errors[layer][node_from];
+                // std::cout << layer-1 << " " << node1 << " " << errors[layer-1][node1] << " "  << dsigmoid(nodes_outputs[layer-1][node_from]) << " " << weights[layer-1][node1][node_from] << " " <<errors[layer][node0] <<std::endl; 
+            }
+        }
+    }
+    for (size_t layer = this->num_of_layers-1; layer >= 1 ; layer--){
+        size_t size_layer_from = this->layers_sizes[layer];
+        size_t size_layer_to = this->layers_sizes[layer-1];
+        for (size_t node_to = 0; node_to < size_layer_to ; node_to++){
+            for (size_t node_from = 0; node_from < size_layer_from ; node_from++){
+                weights[layer-1][node_to][node_from] -= lr*sigmoid(nodes_outputs[layer-1][node_to])*errors[layer][node_from];
             }
         }
     }
 }
+// NN::~NN(){
 
-
-void NN::backward(size_t N_data, double** input, double* output_ref){
-    // last layer has to be always of the size 1 for now, that is why I have only 1 asterix
-    // N_data is for both output and input
-    for (size_t input_entry = 0; input_entry < N_data ; input_entry++){
-        this->zero_grads();
-        this->forward_single(input[input_entry]);
-        double output_pred = sigmoid(this->layers[this->N_layers-1]->a[0]);
-        double doutput_pred = dsigmoid(this->layers[this->N_layers-1]->a[0]);
-        double diff = output_pred - output_ref[input_entry];
-        double loss_last = pow(diff,2);
-        double dloss = doutput_pred*diff; // MSE for 1 observable
-        this->layers[N_layers - 1]->delta[0] = dloss;
-        for (size_t dl = 0 ; dl < this->N_layers-1 ; dl++){
-            // std::cout << "Hello seaman" << std::endl;
-            auto cur_layer = this->layers[(N_layers-1) - dl-1];
-            auto prev_layer = this->layers[(N_layers-1) - dl]; // previous from the back
-            for (size_t current_n = 0 ; current_n < cur_layer->N_size ; current_n++){
-                for (size_t prev_n = 0 ; prev_n < prev_layer->N_size ; prev_n++){
-                    // std::cout << "Prev error: " << prev_layer->delta[prev_n] << " " << current_n << " " << prev_n << std::endl; //
-                    // std::cout << cur_layer->delta[current_n] << std::endl;// += (dsigmoid(cur_layer->a[prev_n]))*prev_layer->w[prev_n][current_n]*prev_layer->delta[prev_n];
-                    cur_layer->delta[current_n] = (dsigmoid(cur_layer->a[current_n]))*cur_layer->w[current_n][prev_n]*prev_layer->delta[prev_n];
-                    cur_layer->dw[current_n][prev_n] += prev_layer->delta[prev_n]*sigmoid(cur_layer->a[current_n]);
-                }
-            }
-        }
-    }
-}
-
-void NN::update_weights(double lr){
-    for (size_t l = 0 ; l < this->N_layers-1; l++){
-        size_t current_layer_size = layers[l]->N_size;
-        size_t next_layer_size = layers[l+1]->N_size;
-        for (size_t n = 0; n < current_layer_size ; n++){
-            for (size_t n2 = 0; n2 < next_layer_size ; n2++){
-                // std::cout << "dw " << layers[l]->dw[n][n2] << " " << -lr*layers[l]->dw[n][n2] <<std::endl;
-                layers[l]->w[n][n2] += -lr*layers[l]->dw[n][n2];
-            }
-        }
-    }
-}
+// }
 
 void NN::print_weights(){
-    std::cout << "#Printing weights\n";
-    for (size_t l = 0 ; l < this->N_layers-1; l++){
-        size_t current_layer_size = layers[l]->N_size;
-        size_t next_layer_size = layers[l+1]->N_size;
-        for (size_t n = 0; n < current_layer_size ; n++){
-            for (size_t n2 = 0; n2 < next_layer_size ; n2++){
-                // std::cout << "dw " << layers[l]->dw[n][n2] << " " << -lr*layers[l]->dw[n][n2] <<std::endl;
-                std::cout << layers[l]->w[n][n2] << " (" << layers[l]->dw[n][n2] << ") ";
+    for (size_t layer = 1; layer < this->num_of_layers ; layer++){
+        std::cout << "Weights from layer" << layer -1 << std::endl;
+        size_t size_layer_from = this->layers_sizes[layer-1];
+        size_t size_layer_to = this->layers_sizes[layer];
+        for (size_t node1 = 0; node1 < size_layer_to ; node1++){
+            for (size_t node0 = 0; node0 < size_layer_from ; node0++){
+                std::cout <<"w"<<layer-1<< "_" <<node0 << node1 << "=" << weights[layer-1][node0][node1] << std::endl;
             }
+            std::cout << std::endl;
         }
-        std::cout << std::endl;
+        
     }
-    std::cout << "@Weights printing done \n";
 }
 
-
-double NN::get_output(){
-    return sigmoid(this->layers[N_layers-1]->a[0]);
-    // return this->layers[N_layers-1]->a[0];
-}
-
-void NN::zero_grads(){
-    for (size_t l = 0 ; l < this->N_layers-1; l++){
-        size_t current_layer_size = layers[l]->N_size;
-        size_t next_layer_size = layers[l+1]->N_size;
-        for (size_t n = 0; n < current_layer_size ; n++){
-            layers[l]->delta[n] = 0;
-            for (size_t n2 = 0; n2 < next_layer_size ; n2++){
-                layers[l]->dw[n][n2] = 0;
+void NN::print_NN_scheme(double* input){
+    size_t size_input_layer = this->layers_sizes[0];
+    for (size_t node = 0; node < size_input_layer ; node++){
+        std::cout << "node_out_" << 0 << "_" <<node << "=" << input[node] << std::endl;
+    }
+    size_t size_output_layer = this->layers_sizes[this->num_of_layers-1];
+    for (size_t layer = 1; layer < this->num_of_layers ; layer++){
+        size_t size_layer_from = this->layers_sizes[layer-1];
+        size_t size_layer_to = this->layers_sizes[layer];
+        for (size_t node1 = 0; node1 < size_layer_to ; node1++){
+            std::cout << "node_out_" << layer << "_" <<node1 << "=0" << std::endl;
+            for (size_t node0 = 0; node0 < size_layer_from ; node0++){
+                std::cout << "node_out_" << layer << "_" <<node1 << "+=sigmoid(node_out_" << layer-1 << "_"<<node0<<")*w"<<layer-1<<"_"<<node0<<node1<<std::endl;
             }
         }
     }
+}
+
+double** NN::weights_init(size_t layer_from, size_t layer_to){
+    //layer_from = rows of the weight matrix
+    //layer_to = columns 
+    // weights shape (layers,node_from,node_to)
+    double** weights = new double*[layer_from];
+    for (size_t i = 0; i < layer_from; ++i) {
+        weights[i] = new double[layer_to];
+        for (size_t j = 0; j < layer_to; ++j)
+            weights[i][j] = random_number(-1.0 ,1.0);
+    }
+    return weights;
 }
