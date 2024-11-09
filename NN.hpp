@@ -1,5 +1,5 @@
-#ifndef NNtest_H
-#define NNtest_H
+#ifndef NN_H
+#define NN_H
 #include <iostream>
 
 void print_vector(double* vector, size_t sample_size);
