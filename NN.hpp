@@ -11,7 +11,8 @@ double random_number(double r_down,double r_up);
 class NN{
 public:
     NN(size_t N_layers, size_t* layer_sizes);
-    double* forward(double* input);
+    // double* forward(double** input);
+    double** forward(double** input,size_t num_of_inputs);
     void train(double* input, double* output,double lr,size_t epochs);
     void print_weights();
     void print_NN_scheme(double* input);

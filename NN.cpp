@@ -35,29 +35,35 @@ NN::NN(size_t n_layers, size_t* sizes) : num_of_layers(n_layers), layers_sizes(n
     }
 }
 
-double* NN::forward(double* input){
+double** NN::forward(double** input,size_t num_of_inputs){
     size_t size_input_layer = this->layers_sizes[0];
     size_t size_output_layer = this->layers_sizes[this->num_of_layers-1];
     double** nodes_outputs = new double*[num_of_layers];
-    double* output = new double[size_output_layer];
+    double** output = new double*[num_of_inputs];
+    for (size_t n_output = 0; n_output < num_of_inputs ; n_output++){
+        output[n_output] = new double[size_output_layer];
+    }
     for (size_t layer = 0; layer < this->num_of_layers ; layer++){
         nodes_outputs[layer] = new double[this->layers_sizes[layer]];
     }
-    for (size_t node = 0; node < size_input_layer ; node++){
-        nodes_outputs[0][node] = input[node];
-    }
-    for (size_t layer = 1; layer < this->num_of_layers ; layer++){
-        size_t size_layer_from = this->layers_sizes[layer-1];
-        size_t size_layer_to = this->layers_sizes[layer];
-        for (size_t node1 = 0; node1 < size_layer_to ; node1++){
-            nodes_outputs[layer][node1] = 0;
-            for (size_t node0 = 0; node0 < size_layer_from ; node0++){
-                nodes_outputs[layer][node1] += sigmoid(nodes_outputs[layer-1][node0])*this->weights[layer-1][node0][node1];
+    for (size_t one_input = 0; one_input < num_of_inputs ; one_input++){
+        for (size_t node = 0; node < size_input_layer ; node++){
+            nodes_outputs[0][node] = input[one_input][node];
+        }
+        
+        for (size_t layer = 1; layer < this->num_of_layers ; layer++){
+            size_t size_layer_from = this->layers_sizes[layer-1];
+            size_t size_layer_to = this->layers_sizes[layer];
+            for (size_t node1 = 0; node1 < size_layer_to ; node1++){
+                nodes_outputs[layer][node1] = 0;
+                for (size_t node0 = 0; node0 < size_layer_from ; node0++){
+                    nodes_outputs[layer][node1] += sigmoid(nodes_outputs[layer-1][node0])*this->weights[layer-1][node0][node1];
+                }
             }
         }
-    }
-    for (size_t output_node = 0; output_node < size_output_layer ; output_node++){
-        output[output_node] = sigmoid(nodes_outputs[this->num_of_layers-1][output_node]);
+        for (size_t output_node = 0; output_node < size_output_layer ; output_node++){
+            output[one_input][output_node] = sigmoid(nodes_outputs[this->num_of_layers-1][output_node]);
+        }
     }
     for (size_t layer = 0; layer < num_of_layers ; layer++){
         delete[] nodes_outputs[layer];
